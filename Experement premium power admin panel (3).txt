@@ -1,0 +1,410 @@
+-- ========== ГИБРИДНЫЙ WHITELIST (RAYFIELD + РЕЗЕРВНЫЙ GUI) ==========
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- ===== ПОЛУЧАЕМ НАСТОЯЩИЙ HWID =====
+local function getRealHWID()
+    if gethwid then
+        local ok, id = pcall(gethwid)
+        if ok and id and id ~= "" then return tostring(id) end
+    end
+    if delta then
+        if delta.gethwid then
+            local ok, id = pcall(delta.gethwid)
+            if ok and id then return tostring(id) end
+        end
+        if delta.HWID then return tostring(delta.HWID) end
+    end
+    if secure_load then
+        local ok, id = pcall(secure_load, "return gethwid()")
+        if ok and id then return tostring(id) end
+    end
+    return nil
+end
+
+local MY_HWID = getRealHWID()
+print("[Whitelist] Твой HWID: " .. tostring(MY_HWID))
+
+local ALLOWED_HWIDS = {
+    ["f153fa9055fbd6c2f75f95edead37677f0f22f8bfb11aa2b9c666d523b376020"] = true,
+    ["216ec2ea9102059b93b2da3ffb9d93dad55248bf3bf631c55aded075801d88bf"] = true,
+    ["01ef447261d1977635cd9b75c95191f3b6a5cf5f0609f7fbafdceda847128e12"] = true,
+}
+
+local MAIN_SCRIPT = "https://raw.githubusercontent.com/XneD-crypto/testing-v25/refs/heads/main/CryptoDogi.lua"
+
+-- ===== АВТОЛОГИН =====
+if MY_HWID and ALLOWED_HWIDS[MY_HWID] then
+    print("[Whitelist] HWID подтверждён. Автозапуск...")
+    pcall(function()
+        loadstring(game:HttpGet(MAIN_SCRIPT))()
+    end)
+    return
+end
+
+-- ===== ПОПЫТКА ЗАГРУЗИТЬ RAYFIELD =====
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if success and Rayfield then
+    -- Rayfield загрузился
+    local Window = Rayfield:CreateWindow({
+        Name = "Whitelist",
+        Icon = "shield",
+        LoadingTitle = "Проверка...",
+        LoadingSubtitle = "by Amir",
+        Theme = "Amethyst",
+    })
+
+    local Tab = Window:CreateTab("Whitelist", "key")
+
+    Tab:CreateButton({
+        Name = "Get HWID",
+        Callback = function()
+            if not MY_HWID then
+                Rayfield:Notify({Title = "Ошибка", Content = "Настоящий HWID не найден", Duration = 3, Image = "alert-circle"})
+                return
+            end
+            if setclipboard then
+                pcall(setclipboard, MY_HWID)
+                Rayfield:Notify({Title = "HWID", Content = "Скопирован!", Duration = 3, Image = "check"})
+            else
+                Rayfield:Notify({Title = "Ошибка", Content = "setclipboard недоступен", Duration = 3, Image = "alert-circle"})
+            end
+        end,
+    })
+
+    Tab:CreateButton({
+        Name = "Load script",
+        Callback = function()
+            if not MY_HWID then
+                Rayfield:Notify({Title = "Ошибка", Content = "Настоящий HWID не найден", Duration = 4, Image = "alert-circle"})
+                return
+            end
+            if ALLOWED_HWIDS[MY_HWID] then
+                Rayfield:Notify({Title = "Успех", Content = "HWID подтверждён. Запуск...", Duration = 3, Image = "check"})
+                task.wait(0.5)
+                pcall(function()
+                    loadstring(game:HttpGet(MAIN_SCRIPT))()
+                end)
+            else
+                Rayfield:Notify({Title = "Ошибка", Content = "HWID не в белом списке", Duration = 4, Image = "alert-circle"})
+            end
+        end,
+    })
+
+    Rayfield:LoadConfiguration()
+
+else
+    -- ===== РЕЗЕРВНЫЙ GUI =====
+    print("[Whitelist] Rayfield не загружен. Запуск резервного интерфейса...")
+
+    local ColorMainBg = Color3.fromRGB(30, 20, 45)
+    local ColorBtnBg = Color3.fromRGB(50, 35, 75)
+    local ColorBtnHover = Color3.fromRGB(70, 50, 105)
+    local ColorStroke = Color3.fromRGB(160, 100, 255)
+    local ColorNeon = Color3.fromRGB(180, 100, 255)
+    local ColorTitle = Color3.fromRGB(240, 230, 255)
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "WhiteListGui"
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.DisplayOrder = 999
+
+    local function ShowNotification(titleText, bodyText, isError)
+        local notif = Instance.new("Frame")
+        notif.Size = UDim2.new(0, 250, 0, 60)
+        notif.Position = UDim2.new(1, 10, 1, -80)
+        notif.BackgroundColor3 = ColorMainBg
+        notif.BackgroundTransparency = 0.35
+        notif.BorderSizePixel = 0
+        notif.Parent = ScreenGui
+
+        local notifCorner = Instance.new("UICorner")
+        notifCorner.CornerRadius = UDim.new(0, 8)
+        notifCorner.Parent = notif
+
+        local notifStroke = Instance.new("UIStroke")
+        notifStroke.Color = ColorStroke
+        notifStroke.Thickness = 1.5
+        notifStroke.Transparency = 0.35
+        notifStroke.Parent = notif
+
+        local checkIcon = Instance.new("TextLabel")
+        checkIcon.Size = UDim2.new(0, 30, 0, 30)
+        checkIcon.Position = UDim2.new(0, 10, 0.5, -15)
+        checkIcon.BackgroundTransparency = 1
+        checkIcon.Text = isError and "✗" or "✓"
+        checkIcon.TextColor3 = isError and Color3.fromRGB(255, 100, 100) or ColorNeon
+        checkIcon.TextSize = 22
+        checkIcon.Font = Enum.Font.GothamBold
+        checkIcon.Parent = notif
+
+        local notifTitle = Instance.new("TextLabel")
+        notifTitle.Size = UDim2.new(1, -50, 0, 20)
+        notifTitle.Position = UDim2.new(0, 45, 0, 10)
+        notifTitle.BackgroundTransparency = 1
+        notifTitle.Text = titleText
+        notifTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        notifTitle.TextSize = 14
+        notifTitle.Font = Enum.Font.GothamBold
+        notifTitle.TextXAlignment = Enum.TextXAlignment.Left
+        notifTitle.Parent = notif
+
+        local notifBody = Instance.new("TextLabel")
+        notifBody.Size = UDim2.new(1, -50, 0, 20)
+        notifBody.Position = UDim2.new(0, 45, 0, 30)
+        notifBody.BackgroundTransparency = 1
+        notifBody.Text = bodyText
+        notifBody.TextColor3 = Color3.fromRGB(200, 200, 220)
+        notifBody.TextSize = 12
+        notifBody.Font = Enum.Font.Gotham
+        notifBody.TextXAlignment = Enum.TextXAlignment.Left
+        notifBody.Parent = notif
+
+        local tweenIn = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, -260, 1, -80)
+        })
+        tweenIn:Play()
+
+        task.delay(3, function()
+            local tweenOut = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                Position = UDim2.new(1, 10, 1, -80)
+            })
+            tweenOut:Play()
+            tweenOut.Completed:Connect(function() notif:Destroy() end)
+        end)
+    end
+
+    local Main = Instance.new("Frame")
+    local targetPosX = UDim2.new(0.5, -250, 0.5, -137)
+    local targetSize = UDim2.new(0, 500, 0, 274)
+
+    Main.Size = targetSize
+    Main.Position = targetPosX
+    Main.BackgroundColor3 = ColorMainBg
+    Main.BorderSizePixel = 0
+    Main.ClipsDescendants = true
+    Main.Parent = ScreenGui
+
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 12)
+    MainCorner.Parent = Main
+
+    Main.Size = UDim2.new(0, 500, 0, 1)
+    Main.Position = UDim2.new(0.5, -250, 0.5, -27)
+    TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Size = targetSize, Position = targetPosX
+    }):Play()
+
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+    CloseBtn.Position = UDim2.new(1, -35, 0, 10)
+    CloseBtn.BackgroundColor3 = ColorBtnBg
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = ColorNeon
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 14
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.AutoButtonColor = false
+    CloseBtn.Parent = Main
+
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 6)
+    CloseCorner.Parent = CloseBtn
+
+    local CloseStroke = Instance.new("UIStroke")
+    CloseStroke.Color = ColorStroke
+    CloseStroke.Thickness = 1.2
+    CloseStroke.Parent = CloseBtn
+
+    CloseBtn.MouseEnter:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = ColorBtnHover}):Play()
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = ColorBtnBg}):Play()
+    end)
+
+    local Icon = Instance.new("TextLabel")
+    Icon.Size = UDim2.new(0, 20, 0, 30)
+    Icon.Position = UDim2.new(0, 20, 0, 15)
+    Icon.BackgroundTransparency = 1
+    Icon.Text = "Æ"
+    Icon.TextColor3 = ColorNeon
+    Icon.Font = Enum.Font.GothamBold
+    Icon.TextSize = 15
+    Icon.Parent = Main
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, -80, 0, 30)
+    Title.Position = UDim2.new(0, 45, 0, 15)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Whitelist"
+    Title.TextColor3 = ColorTitle
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 14
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Main
+
+    local Line = Instance.new("Frame")
+    Line.Size = UDim2.new(1, 0, 0, 1)
+    Line.Position = UDim2.new(0, 0, 0, 45)
+    Line.BackgroundColor3 = ColorStroke
+    Line.BorderSizePixel = 0
+    Line.Parent = Main
+
+    local function createButton(text, yPos)
+        local Btn = Instance.new("TextButton")
+        Btn.Size = UDim2.new(1, -42, 0, 37)
+        Btn.Position = UDim2.new(0, 21, 0, yPos)
+        Btn.BackgroundColor3 = ColorBtnBg
+        Btn.Text = ""
+        Btn.BorderSizePixel = 0
+        Btn.AutoButtonColor = false
+        Btn.Parent = Main
+
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 12)
+        Corner.Parent = Btn
+
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = ColorStroke
+        Stroke.Thickness = 1.5
+        Stroke.Parent = Btn
+
+        local TextLabel = Instance.new("TextLabel")
+        TextLabel.Size = UDim2.new(0.7, 0, 1, 0)
+        TextLabel.Position = UDim2.new(0, 15, 0, 0)
+        TextLabel.BackgroundTransparency = 1
+        TextLabel.Text = text
+        TextLabel.TextColor3 = Color3.fromRGB(230, 220, 255)
+        TextLabel.Font = Enum.Font.GothamSemibold
+        TextLabel.TextSize = 12
+        TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        TextLabel.Parent = Btn
+
+        local SubLabel = Instance.new("TextLabel")
+        SubLabel.Size = UDim2.new(0.3, -15, 1, 0)
+        SubLabel.Position = UDim2.new(0.7, 0, 0, 0)
+        SubLabel.BackgroundTransparency = 1
+        SubLabel.Text = "button"
+        SubLabel.TextColor3 = Color3.fromRGB(180, 170, 200)
+        SubLabel.TextTransparency = 0.3
+        SubLabel.Font = Enum.Font.GothamSemibold
+        SubLabel.TextSize = 10
+        SubLabel.TextXAlignment = Enum.TextXAlignment.Right
+        SubLabel.Parent = Btn
+
+        Btn.MouseEnter:Connect(function()
+            TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = ColorBtnHover}):Play()
+            TweenService:Create(Stroke, TweenInfo.new(0.15), {Color = ColorNeon, Thickness = 2.5}):Play()
+        end)
+
+        Btn.MouseLeave:Connect(function()
+            TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = ColorBtnBg}):Play()
+            TweenService:Create(Stroke, TweenInfo.new(0.15), {Color = ColorStroke, Thickness = 1.5}):Play()
+        end)
+        return Btn
+    end
+
+    local GetHwidBtn = createButton("Get HWID", 60)
+    local LoadBtn = createButton("Load script", 104)
+
+    local Info = Instance.new("TextLabel")
+    Info.Size = UDim2.new(1, -40, 0, 20)
+    Info.Position = UDim2.new(0, 20, 1, -30)
+    Info.BackgroundTransparency = 1
+    if MY_HWID then
+        Info.Text = "HWID: " .. MY_HWID:sub(1, 20) .. "..."
+        Info.TextColor3 = Color3.fromRGB(140, 110, 180)
+    else
+        Info.Text = "HWID: НЕ НАЙДЕН"
+        Info.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+    Info.Font = Enum.Font.Gotham
+    Info.TextSize = 11
+    Info.TextXAlignment = Enum.TextXAlignment.Left
+    Info.Parent = Main
+
+    GetHwidBtn.MouseButton1Click:Connect(function()
+        if not MY_HWID then
+            ShowNotification("Ошибка", "Настоящий HWID не найден", true)
+            return
+        end
+        if setclipboard then
+            pcall(setclipboard, MY_HWID)
+            ShowNotification("HWID", "Скопировано!", false)
+            Info.Text = "HWID скопирован!"
+            Info.TextColor3 = Color3.fromRGB(100, 255, 150)
+            task.wait(2)
+            Info.Text = "HWID: " .. MY_HWID:sub(1, 20) .. "..."
+            Info.TextColor3 = Color3.fromRGB(140, 110, 180)
+        else
+            ShowNotification("Ошибка", "setclipboard недоступен", true)
+        end
+    end)
+
+    LoadBtn.MouseButton1Click:Connect(function()
+        if not MY_HWID then
+            ShowNotification("Ошибка", "Настоящий HWID не найден", true)
+            Info.Text = "HWID не найден!"
+            Info.TextColor3 = Color3.fromRGB(255, 100, 100)
+            return
+        end
+        if ALLOWED_HWIDS[MY_HWID] then
+            ShowNotification("Успех", "HWID подтверждён. Запуск...", false)
+            Info.Text = "Запуск скрипта..."
+            Info.TextColor3 = Color3.fromRGB(100, 255, 150)
+            task.wait(0.5)
+            pcall(function()
+                loadstring(game:HttpGet(MAIN_SCRIPT))()
+            end)
+        else
+            ShowNotification("Ошибка", "HWID не в белом списке", true)
+            Info.Text = "HWID не в списке!"
+            Info.TextColor3 = Color3.fromRGB(255, 100, 100)
+            task.wait(2)
+            Info.Text = "HWID: " .. MY_HWID:sub(1, 20) .. "..."
+            Info.TextColor3 = Color3.fromRGB(140, 110, 180)
+        end
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        local closeTween = TweenService:Create(Main, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 500, 0, 1),
+            Position = UDim2.new(0.5, -250, 0.5, 0),
+            BackgroundTransparency = 1
+        })
+        closeTween:Play()
+        closeTween.Completed:Connect(function()
+            Main.Visible = false
+        end)
+    end)
+
+    local dragging = false
+    local dragStart, startPos, dragInput
+    Main.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    Main.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch and dragging then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
